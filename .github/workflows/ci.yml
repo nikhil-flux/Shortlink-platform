@@ -58,19 +58,22 @@ jobs:
           docker push $IMAGE:latest
 
   k8s-smoke-test:
-    needs: build
-    if: github.ref == 'refs/heads/main'
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Build image locally
+        run: docker build -t shortlink-platform:ci .
       - uses: helm/kind-action@v1
       - name: Deploy to kind
         run: |
-          cd k8s/overlays/dev
-          kustomize edit set image ghcr.io/nikhil-flux/shortlink-platform=$IMAGE:${{ github.sha }}
-          kubectl apply -k .
+          kind load docker-image shortlink-platform:ci
+          kubectl kustomize k8s/overlays/dev \
+            | sed 's#ghcr.io/nikhil-flux/shortlink-platform:latest#shortlink-platform:ci#' \
+            | kubectl apply -f -
           kubectl -n shortlink rollout status deploy/redis --timeout=120s
-          kubectl -n shortlink rollout status deploy/shortlink --timeout=180s
+          kubectl -n shortlink rollout status deploy/shortlink --timeout=180s || {
+            kubectl -n shortlink describe pods; kubectl -n shortlink logs deploy/shortlink --tail=50; exit 1; }
       - name: Smoke test
         run: |
           kubectl -n shortlink port-forward svc/shortlink 8080:80 &

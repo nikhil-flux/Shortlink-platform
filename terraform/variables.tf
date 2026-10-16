@@ -11,5 +11,5 @@ variable "repository_name" {
 variable "github_repo" {
   description = "GitHub repo allowed to push images, as owner/name"
   type        = string
-  default     = "nikhil-flux/shortlink-platform"
+  default     = "nikhil-flux/Shortlink-platform"
 }
